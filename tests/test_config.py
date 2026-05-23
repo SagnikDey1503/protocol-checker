@@ -32,3 +32,14 @@ def test_factory_instantiation():
         
         fast_llm = get_fast_llm()
         assert isinstance(fast_llm, ChatGroq) or hasattr(fast_llm, "model_name")
+
+def test_database_url_fix():
+    """Verify that postgres:// and postgresql:// URL schemes are correctly rewritten to postgresql+asyncpg://"""
+    settings_pg = Settings(database_url="postgres://user:pass@host:5432/db", pinecone_api_key="test")
+    assert settings_pg.database_url == "postgresql+asyncpg://user:pass@host:5432/db"
+
+    settings_pgsql = Settings(database_url="postgresql://user:pass@host:5432/db", pinecone_api_key="test")
+    assert settings_pgsql.database_url == "postgresql+asyncpg://user:pass@host:5432/db"
+
+    settings_already_async = Settings(database_url="postgresql+asyncpg://user:pass@host:5432/db", pinecone_api_key="test")
+    assert settings_already_async.database_url == "postgresql+asyncpg://user:pass@host:5432/db"
