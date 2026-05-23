@@ -55,7 +55,6 @@ services:
   - type: web
     name: protocol-frontend
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
