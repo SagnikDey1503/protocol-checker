@@ -30,21 +30,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     async function loadUser() {
-      if (token) {
+      const savedToken = localStorage.getItem('token');
+      if (savedToken) {
         try {
           const userData = await api.getMe();
           setUser(userData);
         } catch (err) {
-          console.error('Failed to load user profile, clearing session.', err);
-          const message = err instanceof Error ? err.message : 'Your session is invalid or expired. Please log in again.';
-          setAuthError(message);
+          console.error('Failed to load user profile on mount, clearing session.', err);
           logout();
         }
       }
       setLoading(false);
     }
     loadUser();
-  }, [token]);
+  }, []);
 
   const login = async (email: string, password: string) => {
     setLoading(true);

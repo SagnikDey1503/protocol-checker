@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     log_level: str = "INFO"
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    cors_origins: str = "*"
 
     # ── API Keys ──────────────────────────────────────────────
     anthropic_api_key: Optional[str] = Field(None, description="Anthropic Claude API key")
