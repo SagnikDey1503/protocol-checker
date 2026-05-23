@@ -10,7 +10,7 @@
 
 services:
   # ── 1. Redis Service (Working Memory & Cache) ────────────────
-  - type: redis
+  - type: keyvalue
     name: protocol-redis
     plan: free
     ipAllowList: [] # Only allow internal network access
@@ -29,7 +29,7 @@ services:
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: protocol-redis
           property: connectionString
       - key: LLM_PROVIDER
