@@ -39,7 +39,6 @@ dependencies = [
 
     # Hybrid RAG & Reranking
     "rank-bm25",
-    "sentence-transformers",
 
     # Utilities
     "pydantic-settings",

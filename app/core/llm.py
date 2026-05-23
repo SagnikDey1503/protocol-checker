@@ -1,7 +1,7 @@
 """
 Core LLM and embedding model initialization.
 
-Provides singleton instances of ChatGoogleGenerativeAI and SentenceTransformer
+Provides singleton instances of ChatGoogleGenerativeAI
 configured from application settings.
 """
 
@@ -23,7 +23,6 @@ try:
 except ImportError:
     class ChatGroq:  # type: ignore[no-redef]
         pass
-from sentence_transformers import SentenceTransformer
 
 from app.config import get_settings
 
