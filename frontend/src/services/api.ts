@@ -1,4 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const rawBaseUrl = envBaseUrl ? envBaseUrl : 'http://localhost:8000/api/v1';
+export const API_BASE_URL = rawBaseUrl.endsWith('/api/v1') ? rawBaseUrl : `${rawBaseUrl}/api/v1`;
 
 function getHeaders(isMultipart = false): HeadersInit {
   const token = localStorage.getItem('token');
