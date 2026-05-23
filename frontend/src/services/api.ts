@@ -1,6 +1,20 @@
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const rawBaseUrl = envBaseUrl ? envBaseUrl : 'http://localhost:8000/api/v1';
+
+let rawBaseUrl = envBaseUrl ? envBaseUrl : 'http://localhost:8000/api/v1';
+
+// Handle Render blueprint environment placeholder/relative URL issue
+if (!rawBaseUrl || rawBaseUrl.includes('protocol-backend_url') || rawBaseUrl.startsWith('/') || !rawBaseUrl.startsWith('http')) {
+  const hostname = window.location.hostname;
+  if (hostname.includes('protocol-frontend')) {
+    const backendHostname = hostname.replace('protocol-frontend', 'protocol-backend');
+    rawBaseUrl = `https://${backendHostname}/api/v1`;
+  } else {
+    rawBaseUrl = 'http://localhost:8000/api/v1';
+  }
+}
+
 export const API_BASE_URL = rawBaseUrl.endsWith('/api/v1') ? rawBaseUrl : `${rawBaseUrl}/api/v1`;
+console.log('Resolved API_BASE_URL:', API_BASE_URL);
 
 function getHeaders(isMultipart = false): HeadersInit {
   const token = localStorage.getItem('token');
