@@ -109,41 +109,23 @@ def get_pinecone_index():
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
 ) -> User:
     """
-    FastAPI dependency: decode JWT and return the authenticated User.
-
-    Raises HTTP 401 if the token is invalid or the user doesn't exist.
+    FastAPI dependency: Returns a default user, bypassing authentication.
     """
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-        )
-        user_id: str | None = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
-            )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-        )
-
-    result = await db.execute(select(User).where(User.id == UUID(user_id)))
+    result = await db.execute(select(User).where(User.email == "admin@lab.local"))
     user = result.scalar_one_or_none()
-
-    if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
+    
+    if not user:
+        user = User(
+            email="admin@lab.local",
+            hashed_password="bypassed_password",
+            full_name="Lab Admin",
+            is_active=True,
         )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
     return user

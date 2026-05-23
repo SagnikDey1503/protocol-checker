@@ -30,16 +30,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     async function loadUser() {
-      const savedToken = localStorage.getItem('token');
-      if (savedToken) {
-        try {
-          const userData = await api.getMe();
-          setUser(userData);
-        } catch (err) {
-          console.error('Failed to load user profile on mount, clearing session.', err);
-          logout();
-        }
-      }
+      // Bypass authentication completely
+      setUser({
+        id: "mock-id",
+        email: "admin@lab.local",
+        full_name: "Lab Admin",
+        is_active: true
+      });
+      setToken("mock-token");
+      localStorage.setItem('token', 'mock-token');
       setLoading(false);
     }
     loadUser();

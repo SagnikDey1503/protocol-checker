@@ -47,39 +47,26 @@ manager = ConnectionManager()
 
 
 async def get_websocket_user(websocket: WebSocket) -> Optional[User]:
-    """Authenticate WebSocket connection using query parameter token."""
-    token = websocket.query_params.get("token")
-    if not token:
-        logger.warning("WebSocket authentication: Token query param missing")
-        return None
-
-    try:
-        settings = get_settings()
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
+    """Return default user, bypassing WebSocket authentication."""
+    factory = get_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            select(User).where(User.email == "admin@lab.local")
         )
-        user_id = payload.get("sub")
-        if not user_id:
-            logger.warning("WebSocket authentication: Sub claim missing in token")
-            return None
-
-        # Fetch user using a fresh DB session
-        factory = get_session_factory()
-        async with factory() as session:
-            result = await session.execute(
-                select(User).where(User.id == uuid.UUID(user_id))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            user = User(
+                email="admin@lab.local",
+                hashed_password="bypassed_password",
+                full_name="Lab Admin",
+                is_active=True,
             )
-            user = result.scalar_one_or_none()
-            if user and user.is_active:
-                return user
-            
-            logger.warning("WebSocket authentication: User %s not found or inactive", user_id)
-            return None
-    except Exception as e:
-        logger.warning("WebSocket authentication failed: %s", e)
-        return None
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+        return user
 
 
 @router.websocket("/{session_id}")
