@@ -1,0 +1,74 @@
+# ============================================================
+# AI Research Protocol Assistant — Docker Compose
+# ============================================================
+version: "3.9"
+
+services:
+  # --- Application ---
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-protocol_user}:${POSTGRES_PASSWORD:-change_me_in_production}@postgres:5432/${POSTGRES_DB:-protocol_assistant}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./data:/app/data
+      - uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - protocol-net
+
+  # --- Redis (Working Memory + Cache) ---
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - protocol-net
+
+  # --- PostgreSQL (Persistent Storage) ---
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-protocol_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-protocol_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-protocol_user} -d ${POSTGRES_DB:-protocol_assistant}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - protocol-net
+
+volumes:
+  redis_data:
+  pg_data:
+  uploads:
+
+networks:
+  protocol-net:
+    driver: bridge

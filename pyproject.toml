@@ -1,0 +1,96 @@
+[project]
+name = "rag-protocol-assistant"
+version = "0.1.0"
+description = "AI-powered Research Protocol Assistant with RAG, Memory, and Agentic Workflows"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+dependencies = [
+    # Core AI / LLM
+    "langgraph",
+    "langchain-core",
+    "langchain-anthropic",
+    "anthropic",
+    "langchain-google-genai",
+    "langchain-groq",
+
+    # Vector Store
+    "pinecone",
+    "langchain-pinecone",
+
+    # API Framework
+    "fastapi[standard]",
+    "uvicorn[standard]",
+
+    # Database
+    "sqlalchemy",
+    "asyncpg",
+    "alembic",
+
+    # Cache & Messaging
+    "redis",
+    "langchain-redis",
+
+    # PDF Parsing
+    "unstructured",
+    "pdfplumber",
+    "pypdf",
+
+    # Hybrid RAG & Reranking
+    "rank-bm25",
+    "sentence-transformers",
+
+    # Utilities
+    "pydantic-settings",
+    "python-multipart",
+    "aiofiles",
+    "httpx",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "bcrypt<4",
+    "tenacity",
+
+    # Optional
+    "tavily-python",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+]
+
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
