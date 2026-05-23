@@ -19,17 +19,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const response = await fetch(url, options);
   
+  let responseText = '';
+  try {
+    responseText = await response.text();
+  } catch (err) {
+    // Ignore read errors
+  }
+  
   if (!response.ok) {
-    let errorMessage = 'An error occurred';
-    try {
-      const errorData = await response.json();
-      if (Array.isArray(errorData.detail)) {
-        errorMessage = errorData.detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
-      } else {
-        errorMessage = errorData.detail || errorData.error?.message || errorMessage;
+    let errorMessage = response.statusText || 'An error occurred';
+    if (responseText) {
+      try {
+        const errorData = JSON.parse(responseText);
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail || errorData.error?.message || errorMessage;
+        }
+      } catch {
+        // Response is not JSON (e.g. HTML gateway error)
+        errorMessage = responseText.slice(0, 150) || errorMessage;
       }
-    } catch {
-      errorMessage = response.statusText || errorMessage;
     }
 
     if (response.status === 401) {
@@ -38,11 +48,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(errorMessage);
   }
   
-  if (response.status === 204) {
+  if (response.status === 204 || !responseText.trim()) {
     return {} as T;
   }
   
-  return response.json() as Promise<T>;
+  try {
+    return JSON.parse(responseText) as T;
+  } catch (err) {
+    throw new Error('Failed to parse server response');
+  }
 }
 
 export const api = {
