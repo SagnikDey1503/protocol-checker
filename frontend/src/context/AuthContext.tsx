@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
 interface User {
@@ -28,21 +28,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadUser() {
-      // Bypass authentication completely
-      setUser({
-        id: "mock-id",
-        email: "admin@lab.local",
-        full_name: "Lab Admin",
-        is_active: true
-      });
-      setToken("mock-token");
-      localStorage.setItem('token', 'mock-token');
-      setLoading(false);
-    }
-    loadUser();
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    async function restoreSession() {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+
+      setToken(storedToken);
+      try {
+        const profile = await api.getMe();
+        setUser(profile);
+      } catch {
+        logout();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    restoreSession();
+  }, [logout]);
+
+  useEffect(() => {
+    const handleForcedLogout = () => logout();
+    window.addEventListener('auth:logout', handleForcedLogout);
+    return () => window.removeEventListener('auth:logout', handleForcedLogout);
+  }, [logout]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
@@ -52,12 +71,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);
-      setLoading(false);
     } catch (err) {
       logout();
       const message = err instanceof Error ? err.message : 'Authentication failed. Please check your credentials.';
       setAuthError(message);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthError(null);
     try {
       await api.register(email, password, fullName);
-      // Auto login after registration
       await login(email, password);
     } catch (err) {
       setLoading(false);
@@ -74,13 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthError(message);
       throw err;
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setLoading(false);
   };
 
   const clearAuthError = () => setAuthError(null);
@@ -96,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         clearAuthError,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!token,
       }}
     >
       {children}

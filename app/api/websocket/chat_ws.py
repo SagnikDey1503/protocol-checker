@@ -11,12 +11,11 @@ import uuid
 from typing import Any, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
-from jose import jwt
 import redis.asyncio as aioredis
 from sqlalchemy import select
 
-from app.config import get_settings
-from app.dependencies import get_session_factory, get_redis_pool, get_pinecone_index
+from app.core.auth import TokenValidationError, decode_user_id
+from app.dependencies import get_session_factory, get_redis_pool
 from app.models.database import User
 from app.services.chat_service import ChatService
 
@@ -47,25 +46,22 @@ manager = ConnectionManager()
 
 
 async def get_websocket_user(websocket: WebSocket) -> Optional[User]:
-    """Return default user, bypassing WebSocket authentication."""
+    """Validate JWT from query param and return the authenticated user."""
+    token = websocket.query_params.get("token")
+    if not token:
+        return None
+
+    try:
+        user_id = decode_user_id(token)
+    except TokenValidationError:
+        return None
+
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(User).where(User.email == "admin@lab.local")
-        )
+        result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
-        
-        if not user:
-            user = User(
-                email="admin@lab.local",
-                hashed_password="bypassed_password",
-                full_name="Lab Admin",
-                is_active=True,
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-
+        if user is None or not user.is_active:
+            return None
         return user
 
 

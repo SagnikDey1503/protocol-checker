@@ -34,7 +34,10 @@ app = FastAPI(
     version=settings.app_version,
 )
 
-# Apply CORS Middleware
+# Custom middleware first (inner). CORS is added last so it wraps all responses.
+app.add_middleware(ErrorHandlerMiddleware)
+app.add_middleware(RateLimiterMiddleware, max_requests=100, window_seconds=60)
+
 cors_origins, allow_credentials = settings.resolved_cors_origins()
 logger.info("CORS allow_origins=%s allow_credentials=%s", cors_origins, allow_credentials)
 
@@ -45,11 +48,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Apply custom Middlewares
-# Error Handler first to catch any errors from subsequent middlewares
-app.add_middleware(ErrorHandlerMiddleware)
-app.add_middleware(RateLimiterMiddleware, max_requests=100, window_seconds=60)
 
 # Include Routers
 app.include_router(api_router, prefix="/api/v1")

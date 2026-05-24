@@ -15,17 +15,17 @@ from uuid import UUID
 import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
 from pinecone import Pinecone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import Settings, get_settings
+from app.core.auth import TokenValidationError, decode_user_id
 from app.models.database import User
 
 logger = logging.getLogger(__name__)
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # ── Database ─────────────────────────────────────────────────
@@ -109,23 +109,40 @@ def get_pinecone_index():
 
 
 async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """
-    FastAPI dependency: Returns a default user, bypassing authentication.
-    """
-    result = await db.execute(select(User).where(User.email == "admin@lab.local"))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        user = User(
-            email="admin@lab.local",
-            hashed_password="bypassed_password",
-            full_name="Lab Admin",
-            is_active=True,
+    """FastAPI dependency: validate JWT and return the authenticated user."""
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+
+    try:
+        user_id = decode_user_id(credentials.credentials)
+    except TokenValidationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
+        )
 
     return user

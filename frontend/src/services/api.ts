@@ -14,7 +14,6 @@ if (!rawBaseUrl || rawBaseUrl.includes('protocol-backend_url') || rawBaseUrl.sta
 }
 
 export const API_BASE_URL = rawBaseUrl.endsWith('/api/v1') ? rawBaseUrl : `${rawBaseUrl}/api/v1`;
-console.log('Resolved API_BASE_URL:', API_BASE_URL);
 
 function getHeaders(isMultipart = false): HeadersInit {
   const token = localStorage.getItem('token');
@@ -33,12 +32,20 @@ function getHeaders(isMultipart = false): HeadersInit {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, options);
+  let response: Response;
+
+  try {
+    response = await fetch(url, options);
+  } catch {
+    throw new Error(
+      `Cannot reach the backend at ${API_BASE_URL}. Make sure protocol-backend is deployed and running on Render.`
+    );
+  }
   
   let responseText = '';
   try {
     responseText = await response.text();
-  } catch (err) {
+  } catch {
     // Ignore read errors
   }
   
@@ -53,13 +60,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
           errorMessage = errorData.detail || errorData.error?.message || errorMessage;
         }
       } catch {
-        // Response is not JSON (e.g. HTML gateway error)
         errorMessage = responseText.slice(0, 150) || errorMessage;
       }
     }
 
     if (response.status === 401) {
       localStorage.removeItem('token');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
     }
     throw new Error(errorMessage);
   }
@@ -70,7 +77,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   
   try {
     return JSON.parse(responseText) as T;
-  } catch (err) {
+  } catch {
     throw new Error('Failed to parse server response');
   }
 }
