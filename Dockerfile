@@ -47,10 +47,12 @@ RUN chown -R appuser:appuser /app
 
 USER appuser
 
+# Render injects PORT; default to 8000 for local Docker Compose.
+ENV PORT=8000
 EXPOSE 8000
 
-# Health check
+# Health check (uses the same port the app listens on)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/api/v1/health')" || exit 1
+    CMD python -c "import os, httpx; port=os.environ.get('PORT', '8000'); httpx.get(f'http://localhost:{port}/api/v1/health')" || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

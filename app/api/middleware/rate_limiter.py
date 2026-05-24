@@ -64,9 +64,10 @@ class RateLimiterMiddleware:
             await self.app(scope, receive, send)
             return
 
+        method = scope.get("method", "")
         path = scope.get("path", "")
-        # Skip rate-limiting for health checks
-        if path.rstrip("/").endswith("/health"):
+        # Skip rate-limiting for CORS preflight and health checks
+        if method == "OPTIONS" or path.rstrip("/").endswith("/health"):
             await self.app(scope, receive, send)
             return
 

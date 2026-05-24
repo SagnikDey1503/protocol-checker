@@ -7,6 +7,7 @@ All configuration flows through this single Settings class.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -120,6 +121,22 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def resolved_cors_origins(self) -> tuple[list[str], bool]:
+        """Return allowed origins and whether credentials are permitted."""
+        origins = self.cors_origin_list
+        allow_credentials = True
+
+        if "*" in origins or not origins:
+            return ["*"], False
+
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+        if render_url and "protocol-backend" in render_url:
+            frontend_url = render_url.replace("protocol-backend", "protocol-frontend")
+            if frontend_url not in origins:
+                origins.append(frontend_url)
+
+        return origins, allow_credentials
 
     @model_validator(mode="after")
     def fix_database_url(self) -> Settings:

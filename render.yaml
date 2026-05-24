@@ -50,6 +50,11 @@ services:
         value: "false"
       - key: LOG_LEVEL
         value: "INFO"
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: protocol-frontend
+          property: url
 
   # ── 3. Vite React Frontend (Static Site) ─────────────────────
   - type: web
